@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { money, formatTime, paymentLabels } from "../lib/format";
+import { money, formatTime, paymentLabels, describeSale } from "../lib/format";
 import type { PaymentMethod, Sale } from "../types/database";
 
 function todayDateInputValue() {
@@ -23,7 +23,9 @@ export default function SalesPage() {
       const to = new Date(date + "T23:59:59").toISOString();
       let query = supabase
         .from("sales")
-        .select("*, customer:customers(full_name, document_number), seller:profiles(full_name), sale_lockers(locker:lockers(code))")
+        .select(
+          "*, customer:customers(full_name, document_number), seller:profiles(full_name), sale_lockers(unit_price, locker:lockers(code)), sale_items(product_type, quantity, line_total)"
+        )
         .gte("created_at", from)
         .lte("created_at", to)
         .order("created_at", { ascending: false });
@@ -39,6 +41,16 @@ export default function SalesPage() {
   const totalCash = sales.filter((s) => s.payment_method === "cash").reduce((s, sale) => s + Number(sale.total), 0);
   const totalQr = sales.filter((s) => s.payment_method === "qr").reduce((s, sale) => s + Number(sale.total), 0);
   const totalTransfer = sales.filter((s) => s.payment_method === "transfer").reduce((s, sale) => s + Number(sale.total), 0);
+
+  const lockersTotal = sales.reduce((s, sale) => s + (sale.sale_lockers ?? []).reduce((a, sl) => a + Number(sl.unit_price), 0), 0);
+  const consumablesTotal = sales.reduce(
+    (s, sale) => s + (sale.sale_items ?? []).filter((i) => i.product_type === "consumable").reduce((a, i) => a + Number(i.line_total), 0),
+    0
+  );
+  const rentalsTotal = sales.reduce(
+    (s, sale) => s + (sale.sale_items ?? []).filter((i) => i.product_type === "rental").reduce((a, i) => a + Number(i.line_total), 0),
+    0
+  );
 
   return (
     <div>
@@ -57,8 +69,14 @@ export default function SalesPage() {
         </div>
       </div>
 
-      <div className="card stats-row" style={{ display: "flex", gap: 32, marginBottom: 16, flexWrap: "wrap" }}>
-        <Stat label="Total del día" value={money(total)} />
+      <div className="card stats-row" style={{ display: "flex", gap: 28, marginBottom: 10, flexWrap: "wrap" }}>
+        <Stat label="Casilleros" value={money(lockersTotal)} />
+        <Stat label="Productos" value={money(consumablesTotal)} />
+        <Stat label="Alquiler" value={money(rentalsTotal)} />
+        <Stat label="Total del día" value={money(total)} highlight />
+      </div>
+
+      <div className="card stats-row" style={{ display: "flex", gap: 28, marginBottom: 16, flexWrap: "wrap" }}>
         <Stat label="Efectivo" value={money(totalCash)} />
         <Stat label="QR" value={money(totalQr)} />
         <Stat label="Transferencia" value={money(totalTransfer)} />
@@ -79,8 +97,7 @@ export default function SalesPage() {
                 <th>N°</th>
                 <th>Hora</th>
                 <th>Cliente</th>
-                <th>Tipo</th>
-                <th>Cant.</th>
+                <th>Detalle</th>
                 <th>Total</th>
                 <th>Pago</th>
                 <th>Vendedor</th>
@@ -93,8 +110,7 @@ export default function SalesPage() {
                   <td>#{s.sale_number}</td>
                   <td>{formatTime(s.created_at)}</td>
                   <td>{s.customer?.full_name ?? "—"}</td>
-                  <td>{s.sale_type === "locker" ? "Casillero" : "Sin casillero"}</td>
-                  <td>{s.quantity}</td>
+                  <td>{describeSale(s)}</td>
                   <td style={{ fontWeight: 600 }}>{money(s.total)}</td>
                   <td>{paymentLabels[s.payment_method]}</td>
                   <td>{s.seller?.full_name ?? "—"}</td>
@@ -113,11 +129,11 @@ export default function SalesPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div>
       <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>{label}</p>
-      <p className="display" style={{ fontSize: 18, margin: 0 }}>
+      <p className="display" style={{ fontSize: 18, margin: 0, color: highlight ? "var(--occupied)" : "inherit" }}>
         {value}
       </p>
     </div>

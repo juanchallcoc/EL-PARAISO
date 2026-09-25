@@ -4,6 +4,7 @@ import DashboardPage from "../pages/DashboardPage";
 import SalesPage from "../pages/SalesPage";
 import SaleReceiptPage from "../pages/SaleReceiptPage";
 import CustomersPage from "../pages/CustomersPage";
+import ProductsPage from "../pages/ProductsPage";
 import CashRegisterPage from "../pages/CashRegisterPage";
 import CashHistoryPage from "../pages/CashHistoryPage";
 import SettingsLayout from "../pages/settings/SettingsLayout";
@@ -45,6 +46,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <CustomersPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/productos",
+    element: (
+      <ProtectedRoute>
+        <ProductsPage />
       </ProtectedRoute>
     ),
   },

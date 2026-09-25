@@ -17,7 +17,9 @@ export default function SaleReceiptPage() {
     async function load() {
       const { data } = await supabase
         .from("sales")
-        .select("*, customer:customers(full_name, document_number), seller:profiles(full_name), sale_lockers(locker:lockers(code))")
+        .select(
+          "*, customer:customers(full_name, document_number), seller:profiles(full_name), sale_lockers(*, locker:lockers(code)), sale_items(*)"
+        )
         .eq("id", id)
         .single();
       setSale(data as Sale | null);
@@ -37,6 +39,10 @@ export default function SaleReceiptPage() {
   if (!sale) {
     return <div className="card">No se encontró la venta.</div>;
   }
+
+  const lockers = sale.sale_lockers ?? [];
+  const items = sale.sale_items ?? [];
+  const lockerTotal = lockers.reduce((s, sl) => s + Number(sl.unit_price), 0);
 
   return (
     <div style={{ maxWidth: 520, margin: "0 auto" }}>
@@ -60,16 +66,23 @@ export default function SaleReceiptPage() {
           <Row label="Cliente" value={sale.customer?.full_name ?? "—"} />
           <Row label="CI / documento" value={sale.customer?.document_number ?? "—"} />
           <Row label="Atendido por" value={sale.seller?.full_name ?? "—"} />
-          {sale.sale_type === "locker" && sale.sale_lockers && sale.sale_lockers.length > 0 && (
-            <Row label="Casilleros" value={sale.sale_lockers.map((sl) => sl.locker?.code).join(", ")} />
-          )}
         </div>
 
-        <Row label="Cantidad" value={String(sale.quantity)} />
-        <Row label="Precio unitario" value={money(sale.unit_price)} />
-        <Row label="Subtotal" value={money(sale.subtotal)} />
-        <Row label={`Descuento (${sale.discount_percentage}%)`} value={"- " + money(sale.discount_amount)} />
-        <Row label="Método de pago" value={paymentLabels[sale.payment_method]} />
+        <p className="label" style={{ marginBottom: 6 }}>
+          Detalle
+        </p>
+        {lockers.length > 0 && (
+          <Row label={`Casillero(s): ${lockers.map((l) => l.locker?.code).join(", ")}`} value={money(lockerTotal)} />
+        )}
+        {items.map((it) => (
+          <Row key={it.id} label={it.quantity > 1 ? `${it.product_name} x${it.quantity}` : it.product_name} value={money(it.line_total)} />
+        ))}
+
+        <div style={{ borderTop: "1px solid var(--border)", marginTop: 8, paddingTop: 8 }}>
+          <Row label="Subtotal" value={money(sale.subtotal)} />
+          <Row label={`Descuento (${sale.discount_percentage}%)`} value={"- " + money(sale.discount_amount)} />
+          <Row label="Método de pago" value={paymentLabels[sale.payment_method]} />
+        </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 20, fontWeight: 700, borderTop: "1px solid var(--border)", marginTop: 10, paddingTop: 10, color: "var(--occupied)" }}>
           <span>Total</span>
@@ -90,9 +103,9 @@ export default function SaleReceiptPage() {
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6, gap: 12 }}>
       <span style={{ color: "var(--text-muted)" }}>{label}</span>
-      <span style={{ fontWeight: 500 }}>{value}</span>
+      <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{value}</span>
     </div>
   );
 }

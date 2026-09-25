@@ -6,7 +6,7 @@ import { useAppData } from "../hooks/useAppData";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
 import { money, formatDateTime } from "../lib/format";
-import { generateCashClosePDF } from "../lib/pdf";
+import { generateCashClosePDF, type CashCloseCategoryTotals } from "../lib/pdf";
 import type { CashMovement, MovementType } from "../types/database";
 
 export default function CashRegisterPage() {
@@ -19,6 +19,12 @@ export default function CashRegisterPage() {
 
   const [movements, setMovements] = useState<CashMovement[]>([]);
   const [totals, setTotals] = useState({ cash: 0, qr: 0, transfer: 0 });
+  const [categoryTotals, setCategoryTotals] = useState<CashCloseCategoryTotals>({
+    lockers: 0,
+    consumables: 0,
+    rentals: 0,
+    noLockerFee: 0,
+  });
   const [loadingTotals, setLoadingTotals] = useState(true);
   const [movementModal, setMovementModal] = useState<MovementType | null>(null);
   const [closeModal, setCloseModal] = useState(false);
@@ -27,7 +33,10 @@ export default function CashRegisterPage() {
     if (!activeRegister) return;
     setLoadingTotals(true);
     const [{ data: sales }, { data: mv }] = await Promise.all([
-      supabase.from("sales").select("total, payment_method").eq("cash_register_id", activeRegister.id),
+      supabase
+        .from("sales")
+        .select("total, payment_method, sale_lockers(unit_price), sale_items(product_type, line_total)")
+        .eq("cash_register_id", activeRegister.id),
       supabase
         .from("cash_movements")
         .select("*, user:profiles(full_name)")
@@ -35,12 +44,21 @@ export default function CashRegisterPage() {
         .order("created_at", { ascending: false }),
     ]);
     const t = { cash: 0, qr: 0, transfer: 0 };
+    const cat: CashCloseCategoryTotals = { lockers: 0, consumables: 0, rentals: 0, noLockerFee: 0 };
     (sales ?? []).forEach((s: any) => {
       if (s.payment_method === "cash") t.cash += Number(s.total);
       if (s.payment_method === "qr") t.qr += Number(s.total);
       if (s.payment_method === "transfer") t.transfer += Number(s.total);
+
+      (s.sale_lockers ?? []).forEach((sl: any) => (cat.lockers += Number(sl.unit_price)));
+      (s.sale_items ?? []).forEach((it: any) => {
+        if (it.product_type === "consumable") cat.consumables += Number(it.line_total);
+        if (it.product_type === "rental") cat.rentals += Number(it.line_total);
+        if (it.product_type === "service") cat.noLockerFee += Number(it.line_total);
+      });
     });
     setTotals(t);
+    setCategoryTotals(cat);
     setMovements((mv as CashMovement[]) ?? []);
     setLoadingTotals(false);
   }
@@ -116,6 +134,13 @@ export default function CashRegisterPage() {
         </div>
       </div>
 
+      <div className="card stats-row" style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 10 }}>
+        <Stat label="Casilleros" value={money(categoryTotals.lockers)} />
+        <Stat label="Entrada sin casillero" value={money(categoryTotals.noLockerFee)} />
+        <Stat label="Productos" value={money(categoryTotals.consumables)} />
+        <Stat label="Alquiler" value={money(categoryTotals.rentals)} />
+      </div>
+
       <div className="card stats-row" style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 16 }}>
         <Stat label="Fondo inicial" value={money(activeRegister.opening_amount)} />
         <Stat label="Ventas efectivo" value={money(totals.cash)} />
@@ -179,6 +204,7 @@ export default function CashRegisterPage() {
         <CloseRegisterModal
           register={activeRegister}
           totals={totals}
+          categoryTotals={categoryTotals}
           totalIncome={totalIncome}
           totalExpense={totalExpense}
           movements={movements}
@@ -272,6 +298,7 @@ function MovementModal({
 function CloseRegisterModal({
   register,
   totals,
+  categoryTotals,
   totalIncome,
   totalExpense,
   movements,
@@ -280,6 +307,7 @@ function CloseRegisterModal({
 }: {
   register: any;
   totals: { cash: number; qr: number; transfer: number };
+  categoryTotals: CashCloseCategoryTotals;
   totalIncome: number;
   totalExpense: number;
   movements: CashMovement[];
@@ -319,7 +347,8 @@ function CloseRegisterModal({
         movements,
         settings,
         profile.full_name ?? "—",
-        profile.full_name ?? "—"
+        profile.full_name ?? "—",
+        categoryTotals
       );
     }
     showToast("Caja cerrada correctamente");
@@ -332,6 +361,11 @@ function CloseRegisterModal({
         <h2 className="display" style={{ margin: "0 0 16px", fontSize: 18 }}>
           Confirmar cierre de caja
         </h2>
+        <Row label="Casilleros" value={money(categoryTotals.lockers)} />
+        <Row label="Entrada sin casillero" value={money(categoryTotals.noLockerFee)} />
+        <Row label="Productos" value={money(categoryTotals.consumables)} />
+        <Row label="Alquiler" value={money(categoryTotals.rentals)} />
+        <div style={{ borderTop: "1px solid var(--border)", margin: "8px 0" }} />
         <Row label="Fondo inicial" value={money(register.opening_amount)} />
         <Row label="Ventas efectivo" value={money(totals.cash)} />
         <Row label="Ventas QR" value={money(totals.qr)} />

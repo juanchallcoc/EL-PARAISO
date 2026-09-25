@@ -29,43 +29,55 @@ export function generateSaleReceiptPDF(sale: Sale, settings: BusinessSettings, s
   doc.text(`CI / Documento: ${sale.customer?.document_number ?? "—"}`, 14, y);
   y += 7;
   doc.text(`Atendido por: ${sellerName}`, 14, y);
-  y += 12;
+  y += 10;
 
   doc.setDrawColor(220, 238, 240);
   doc.line(14, y, 196, y);
-  y += 10;
-
-  doc.setFontSize(12);
-  doc.text(
-    sale.sale_type === "locker" ? "Venta de casillero(s)" : "Venta sin casillero",
-    14,
-    y
-  );
   y += 8;
 
-  if (sale.sale_type === "locker" && sale.sale_lockers?.length) {
-    const codes = sale.sale_lockers.map((sl) => sl.locker?.code).filter(Boolean).join(", ");
-    doc.setFontSize(10);
-    doc.text(`Casilleros: ${codes}`, 14, y);
-    y += 8;
-  }
+  doc.setFontSize(11);
+  doc.text("Detalle", 14, y);
+  doc.text("Total", 196, y, { align: "right" });
+  y += 6;
+  doc.setDrawColor(220, 238, 240);
+  doc.line(14, y, 196, y);
+  y += 6;
 
   doc.setFontSize(10);
+  const lockers = sale.sale_lockers ?? [];
+  if (lockers.length > 0) {
+    const codes = lockers.map((sl) => sl.locker?.code).filter(Boolean).join(", ");
+    const lockerTotal = lockers.reduce((s, sl) => s + Number(sl.unit_price), 0);
+    doc.text(`Casillero(s): ${codes}`, 14, y);
+    doc.text(money(lockerTotal), 196, y, { align: "right" });
+    y += 7;
+  }
+
+  (sale.sale_items ?? []).forEach((item) => {
+    const label = item.quantity > 1 ? `${item.product_name} x${item.quantity}` : item.product_name;
+    doc.text(label, 14, y);
+    doc.text(money(item.line_total), 196, y, { align: "right" });
+    y += 7;
+  });
+
+  y += 4;
+  doc.setDrawColor(220, 238, 240);
+  doc.line(14, y, 196, y);
+  y += 8;
+
   const rows: [string, string][] = [
-    ["Cantidad", String(sale.quantity)],
-    ["Precio unitario", money(sale.unit_price)],
     ["Subtotal", money(sale.subtotal)],
-    ["Descuento (" + sale.discount_percentage + "%)", "- " + money(sale.discount_amount)],
-    ["Total", money(sale.total)],
+    [`Descuento (${sale.discount_percentage}%)`, "- " + money(sale.discount_amount)],
     ["Método de pago", paymentLabels[sale.payment_method]],
   ];
+  doc.setFontSize(10);
   rows.forEach(([label, value], i) => {
     const rowY = y + i * 8;
     doc.text(label, 14, rowY);
     doc.text(value, 196, rowY, { align: "right" });
   });
 
-  y += rows.length * 8 + 10;
+  y += rows.length * 8 + 6;
   doc.setDrawColor(220, 238, 240);
   doc.line(14, y, 196, y);
   y += 10;
@@ -81,12 +93,20 @@ export function generateSaleReceiptPDF(sale: Sale, settings: BusinessSettings, s
   doc.save(`venta-${sale.sale_number}.pdf`);
 }
 
+export interface CashCloseCategoryTotals {
+  lockers: number;
+  consumables: number;
+  rentals: number;
+  noLockerFee: number;
+}
+
 export function generateCashClosePDF(
   register: CashRegister,
   movements: CashMovement[],
   settings: BusinessSettings,
   openerName: string,
-  closerName: string
+  closerName: string,
+  categoryTotals?: CashCloseCategoryTotals
 ) {
   const doc = new jsPDF();
   header(doc, settings, "Cierre de caja");
@@ -106,6 +126,31 @@ export function generateCashClosePDF(
   doc.line(14, y, 196, y);
   y += 10;
 
+  if (categoryTotals) {
+    doc.setFontSize(12);
+    doc.text("Ventas por categoría", 14, y);
+    y += 8;
+    doc.setFontSize(10);
+    const catRows: [string, string][] = [
+      ["Casilleros", money(categoryTotals.lockers)],
+      ["Entrada sin casillero", money(categoryTotals.noLockerFee)],
+      ["Productos", money(categoryTotals.consumables)],
+      ["Alquiler", money(categoryTotals.rentals)],
+    ];
+    catRows.forEach(([label, value], i) => {
+      const rowY = y + i * 8;
+      doc.text(label, 14, rowY);
+      doc.text(value, 196, rowY, { align: "right" });
+    });
+    y += catRows.length * 8 + 8;
+    doc.setDrawColor(220, 238, 240);
+    doc.line(14, y, 196, y);
+    y += 10;
+  }
+
+  doc.setFontSize(12);
+  doc.text("Resumen de caja", 14, y);
+  y += 8;
   const rows: [string, string][] = [
     ["Monto inicial (fondo de caja)", money(register.opening_amount)],
     ["Ventas en efectivo", money(register.total_cash)],
@@ -115,13 +160,13 @@ export function generateCashClosePDF(
     ["Total egresos", "- " + money(register.total_expenses)],
     ["Saldo final calculado", money(register.closing_balance)],
   ];
-  doc.setFontSize(11);
+  doc.setFontSize(10);
   rows.forEach(([label, value], i) => {
-    const rowY = y + i * 9;
+    const rowY = y + i * 8;
     doc.text(label, 14, rowY);
     doc.text(value, 196, rowY, { align: "right" });
   });
-  y += rows.length * 9 + 8;
+  y += rows.length * 8 + 8;
 
   if (movements.length) {
     doc.setDrawColor(220, 238, 240);

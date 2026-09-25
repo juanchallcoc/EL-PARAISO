@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Search, Plus, X } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
-import { money, formatDateTime } from "../lib/format";
+import { money, formatDateTime, describeSale } from "../lib/format";
 import { useToast } from "../hooks/useToast";
 import type { Customer, Sale } from "../types/database";
 
@@ -177,7 +177,7 @@ function CustomerHistoryModal({ customer, onClose }: { customer: Customer; onClo
   useEffect(() => {
     supabase
       .from("sales")
-      .select("*")
+      .select("*, sale_lockers(id), sale_items(product_type, quantity)")
       .eq("customer_id", customer.id)
       .order("created_at", { ascending: false })
       .then(({ data }) => {
@@ -219,7 +219,7 @@ function CustomerHistoryModal({ customer, onClose }: { customer: Customer; onClo
               {sales.map((s) => (
                 <tr key={s.id}>
                   <td>{formatDateTime(s.created_at)}</td>
-                  <td>{s.sale_type === "locker" ? "Casillero" : "Sin casillero"}</td>
+                  <td>{describeSale(s)}</td>
                   <td>{money(s.total)}</td>
                 </tr>
               ))}

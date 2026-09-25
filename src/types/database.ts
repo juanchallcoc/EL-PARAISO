@@ -1,8 +1,9 @@
 export type Role = "admin" | "staff" | "client";
-export type SaleType = "locker" | "no_locker";
 export type PaymentMethod = "cash" | "qr" | "transfer";
 export type MovementType = "income" | "expense";
 export type CashStatus = "open" | "closed";
+export type ProductType = "consumable" | "rental";
+export type SaleItemType = "consumable" | "rental" | "service";
 
 export interface Profile {
   id: string;
@@ -36,9 +37,38 @@ export interface SaleLocker {
   id: string;
   sale_id: string;
   locker_id: string;
+  unit_price: number;
   released_at: string | null;
   created_at: string;
   locker?: Locker;
+}
+
+/** Producto del inventario: comida/snacks/bebidas (consumable) o alquiler (rental, ej. shorts) */
+export interface Product {
+  id: string;
+  name: string;
+  type: ProductType;
+  price: number;
+  stock_quantity: number;
+  low_stock_threshold: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Línea de producto (o de "entrada sin casillero") dentro de una venta */
+export interface SaleItem {
+  id: string;
+  sale_id: string;
+  product_id: string | null;
+  product_name: string;
+  product_type: SaleItemType;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  returned_at: string | null;
+  created_at: string;
+  product?: Product;
 }
 
 export interface Sale {
@@ -47,9 +77,6 @@ export interface Sale {
   customer_id: string | null;
   user_id: string | null;
   cash_register_id: string | null;
-  sale_type: SaleType;
-  quantity: number;
-  unit_price: number;
   subtotal: number;
   discount_percentage: number;
   discount_amount: number;
@@ -59,6 +86,7 @@ export interface Sale {
   customer?: Customer;
   seller?: Profile;
   sale_lockers?: SaleLocker[];
+  sale_items?: SaleItem[];
 }
 
 export interface CashRegister {
@@ -111,4 +139,17 @@ export interface LockerWithStatus extends Locker {
   saleLockerId?: string;
   customerName?: string;
   saleId?: string;
+}
+
+/** Producto enriquecido con disponibilidad actual (derivado en el cliente) */
+export interface ProductWithAvailability extends Product {
+  activeRentals: number; // solo aplica a type === 'rental'
+  available: number; // consumable: stock_quantity; rental: stock_quantity - activeRentals
+  lowStock: boolean;
+}
+
+/** Ítem del carrito de venta, antes de confirmarse */
+export interface CartProductLine {
+  product: ProductWithAvailability;
+  quantity: number;
 }

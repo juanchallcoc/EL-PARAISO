@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutGrid, Receipt, Wallet, Users, Settings as SettingsIcon, Waves, LogOut } from "lucide-react";
+import { LayoutGrid, Receipt, Wallet, Users, Settings as SettingsIcon, Waves, LogOut, Package } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useAppData } from "../../hooks/useAppData";
 import type { ReactNode } from "react";
@@ -19,6 +19,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     { to: "/ventas", label: "Ventas del día", icon: Receipt },
     { to: "/caja", label: "Caja", icon: Wallet },
     { to: "/clientes", label: "Clientes", icon: Users },
+    { to: "/productos", label: "Productos", icon: Package },
   ];
   if (profile?.role === "admin") {
     navItems.push({ to: "/configuracion", label: "Configuración", icon: SettingsIcon });

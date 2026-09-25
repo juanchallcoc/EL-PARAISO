@@ -33,3 +33,20 @@ export const roleLabels: Record<string, string> = {
   staff: "Staff",
   client: "Cliente",
 };
+
+/** Resume en texto qué contiene una venta: casilleros, entrada, productos y/o alquiler */
+export function describeSale(sale: {
+  sale_lockers?: { id: string }[];
+  sale_items?: { product_type: string; quantity: number }[];
+}): string {
+  const parts: string[] = [];
+  const lockerCount = sale.sale_lockers?.length ?? 0;
+  if (lockerCount > 0) parts.push(`${lockerCount} casillero${lockerCount > 1 ? "s" : ""}`);
+  const items = sale.sale_items ?? [];
+  if (items.some((i) => i.product_type === "service")) parts.push("entrada");
+  const consumableQty = items.filter((i) => i.product_type === "consumable").reduce((s, i) => s + i.quantity, 0);
+  if (consumableQty > 0) parts.push(`${consumableQty} producto${consumableQty > 1 ? "s" : ""}`);
+  const rentalQty = items.filter((i) => i.product_type === "rental").length;
+  if (rentalQty > 0) parts.push(`${rentalQty} alquiler${rentalQty > 1 ? "es" : ""}`);
+  return parts.length > 0 ? parts.join(" + ") : "—";
+}

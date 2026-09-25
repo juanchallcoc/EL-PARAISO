@@ -3,18 +3,17 @@ import { Link } from "react-router-dom";
 import { Droplet, Sun, Plus, AlertCircle } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAppData } from "../hooks/useAppData";
-import OccupyModal from "../components/modals/OccupyModal";
+import SaleCartModal from "../components/modals/SaleCartModal";
 import ConfirmFreeModal from "../components/modals/ConfirmFreeModal";
-import NoLockerSaleModal from "../components/modals/NoLockerSaleModal";
 import type { Locker, LockerWithStatus } from "../types/database";
 
 export default function DashboardPage() {
   const { activeRegister } = useAppData();
   const [lockers, setLockers] = useState<LockerWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [occupyTarget, setOccupyTarget] = useState<string[] | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [preselectedLockerIds, setPreselectedLockerIds] = useState<string[]>([]);
   const [freeTarget, setFreeTarget] = useState<LockerWithStatus | null>(null);
-  const [noLockerOpen, setNoLockerOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,8 +70,14 @@ export default function DashboardPage() {
           <Stat label="Ocupados" value={occupied.length} color="var(--occupied)" />
           <Stat label="Disponibles" value={available.length} color="var(--available)" />
         </div>
-        <button className="btn btn-accent" onClick={() => setNoLockerOpen(true)}>
-          <Plus size={16} /> Venta sin casillero
+        <button
+          className="btn btn-accent"
+          onClick={() => {
+            setPreselectedLockerIds([]);
+            setCartOpen(true);
+          }}
+        >
+          <Plus size={16} /> Nueva venta
         </button>
       </div>
 
@@ -117,7 +122,14 @@ export default function DashboardPage() {
                 )}
               </div>
               <button
-                onClick={() => (l.occupied ? setFreeTarget(l) : setOccupyTarget([l.id]))}
+                onClick={() => {
+                  if (l.occupied) {
+                    setFreeTarget(l);
+                  } else {
+                    setPreselectedLockerIds([l.id]);
+                    setCartOpen(true);
+                  }
+                }}
                 className="btn"
                 style={{ marginTop: 8, padding: "7px 0", fontSize: 13, color: "white", background: l.occupied ? "var(--occupied)" : "var(--available)" }}
               >
@@ -128,16 +140,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {occupyTarget && (
-        <OccupyModal
+      {cartOpen && (
+        <SaleCartModal
           availableLockers={available}
-          preselectedIds={occupyTarget}
-          onClose={() => setOccupyTarget(null)}
+          preselectedLockerIds={preselectedLockerIds}
+          onClose={() => setCartOpen(false)}
           onSuccess={load}
         />
       )}
       {freeTarget && <ConfirmFreeModal locker={freeTarget} onClose={() => setFreeTarget(null)} onSuccess={load} />}
-      {noLockerOpen && <NoLockerSaleModal onClose={() => setNoLockerOpen(false)} onSuccess={load} />}
     </div>
   );
 }

@@ -26,12 +26,20 @@ export default function CashHistoryPage() {
 
   async function handleDownload(r: CashRegister) {
     if (!settings) return;
-    const { data: movements } = await supabase
-      .from("cash_movements")
-      .select("*")
-      .eq("cash_register_id", r.id)
-      .order("created_at");
-    generateCashClosePDF(r, (movements as CashMovement[]) ?? [], settings, r.opener?.full_name ?? "—", r.closer?.full_name ?? "—");
+    const [{ data: movements }, { data: sales }] = await Promise.all([
+      supabase.from("cash_movements").select("*").eq("cash_register_id", r.id).order("created_at"),
+      supabase.from("sales").select("sale_lockers(unit_price), sale_items(product_type, line_total)").eq("cash_register_id", r.id),
+    ]);
+    const cat = { lockers: 0, consumables: 0, rentals: 0, noLockerFee: 0 };
+    (sales ?? []).forEach((s: any) => {
+      (s.sale_lockers ?? []).forEach((sl: any) => (cat.lockers += Number(sl.unit_price)));
+      (s.sale_items ?? []).forEach((it: any) => {
+        if (it.product_type === "consumable") cat.consumables += Number(it.line_total);
+        if (it.product_type === "rental") cat.rentals += Number(it.line_total);
+        if (it.product_type === "service") cat.noLockerFee += Number(it.line_total);
+      });
+    });
+    generateCashClosePDF(r, (movements as CashMovement[]) ?? [], settings, r.opener?.full_name ?? "—", r.closer?.full_name ?? "—", cat);
   }
 
   return (
