@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Minus, Plus } from "lucide-react";
 import ModalShell from "../ui/ModalShell";
 import CustomerPicker from "../ui/CustomerPicker";
 import PaymentMethodPicker from "../ui/PaymentMethodPicker";
@@ -29,7 +30,7 @@ export default function SaleCartModal({
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [selectedLockerIds, setSelectedLockerIds] = useState<string[]>(preselectedLockerIds);
-  const [includeNoLockerFee, setIncludeNoLockerFee] = useState(false);
+  const [noLockerQty, setNoLockerQty] = useState(0);
   const [consumables, setConsumables] = useState<ProductWithAvailability[]>([]);
   const [rentals, setRentals] = useState<ProductWithAvailability[]>([]);
   const [consumableLines, setConsumableLines] = useState<CartProductLine[]>([]);
@@ -49,14 +50,14 @@ export default function SaleCartModal({
   }, []);
 
   const lockerTotal = selectedLockerIds.length * (settings?.locker_price ?? 0);
-  const noLockerFeeTotal = includeNoLockerFee ? settings?.no_locker_price ?? 0 : 0;
+  const noLockerFeeTotal = noLockerQty * (settings?.no_locker_price ?? 0);
   const consumableTotal = consumableLines.reduce((s, l) => s + l.product.price * l.quantity, 0);
   const rentalTotal = rentalLines.reduce((s, l) => s + l.product.price * l.quantity, 0);
   const subtotal = lockerTotal + noLockerFeeTotal + consumableTotal + rentalTotal;
   const discountAmount = applyDiscount ? Math.round(subtotal * (discountPct / 100) * 100) / 100 : 0;
   const total = subtotal - discountAmount;
 
-  const hasAnyItem = selectedLockerIds.length > 0 || includeNoLockerFee || consumableLines.length > 0 || rentalLines.length > 0;
+  const hasAnyItem = selectedLockerIds.length > 0 || noLockerQty > 0 || consumableLines.length > 0 || rentalLines.length > 0;
   const canSubmit = !!customer && hasAnyItem && !!activeRegister && !submitting;
 
   function toggleLocker(id: string) {
@@ -75,7 +76,7 @@ export default function SaleCartModal({
         discountPercentage: applyDiscount ? discountPct : 0,
         paymentMethod: payment,
         lockerIds: selectedLockerIds,
-        includeNoLockerFee,
+        noLockerQuantity: noLockerQty,
         productLines,
       });
 
@@ -129,10 +130,36 @@ export default function SaleCartModal({
             {availableLockers.length === 0 && <p style={{ fontSize: 13, color: "var(--text-muted)" }}>No hay casilleros disponibles.</p>}
           </div>
 
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginTop: 14 }}>
-            <input type="checkbox" checked={includeNoLockerFee} onChange={(e) => setIncludeNoLockerFee(e.target.checked)} />
-            Entrada sin casillero ({money(settings?.no_locker_price ?? 0)})
-          </label>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginTop: 14,
+              padding: "8px 10px",
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Entrada sin casillero</p>
+              <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)" }}>{money(settings?.no_locker_price ?? 0)} c/u</p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <button
+                className="btn-outline"
+                style={{ padding: 6, borderRadius: 8 }}
+                disabled={noLockerQty <= 0}
+                onClick={() => setNoLockerQty((q) => Math.max(0, q - 1))}
+              >
+                <Minus size={13} />
+              </button>
+              <span style={{ minWidth: 20, textAlign: "center", fontSize: 13, fontWeight: 600 }}>{noLockerQty}</span>
+              <button className="btn-outline" style={{ padding: 6, borderRadius: 8 }} onClick={() => setNoLockerQty((q) => q + 1)}>
+                <Plus size={13} />
+              </button>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -161,7 +188,9 @@ export default function SaleCartModal({
 
       <div style={{ marginTop: 20, background: "var(--bg)", borderRadius: 14, padding: 16 }}>
         {lockerTotal > 0 && <Row label={`Casilleros (${selectedLockerIds.length})`} value={money(lockerTotal)} />}
-        {noLockerFeeTotal > 0 && <Row label="Entrada sin casillero" value={money(noLockerFeeTotal)} />}
+        {noLockerFeeTotal > 0 && (
+          <Row label={`Entrada sin casillero${noLockerQty > 1 ? ` (${noLockerQty})` : ""}`} value={money(noLockerFeeTotal)} />
+        )}
         {consumableTotal > 0 && <Row label="Productos" value={money(consumableTotal)} />}
         {rentalTotal > 0 && <Row label="Alquiler" value={money(rentalTotal)} />}
         <Row label="Subtotal" value={money(subtotal)} />

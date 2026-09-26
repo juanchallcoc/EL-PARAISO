@@ -7,7 +7,7 @@ export interface CreateSaleInput {
   discountPercentage: number;
   paymentMethod: "cash" | "qr" | "transfer";
   lockerIds: string[];
-  includeNoLockerFee: boolean;
+  noLockerQuantity: number;
   productLines: { productId: string; quantity: number }[];
 }
 
@@ -24,7 +24,7 @@ export async function createSale(input: CreateSaleInput): Promise<{ id: string; 
     p_discount_percentage: input.discountPercentage,
     p_payment_method: input.paymentMethod,
     p_locker_ids: input.lockerIds,
-    p_include_no_locker_fee: input.includeNoLockerFee,
+    p_no_locker_quantity: input.noLockerQuantity,
     p_product_lines: input.productLines.map((l) => ({ product_id: l.productId, quantity: l.quantity })),
   });
 

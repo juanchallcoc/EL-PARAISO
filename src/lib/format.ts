@@ -43,7 +43,8 @@ export function describeSale(sale: {
   const lockerCount = sale.sale_lockers?.length ?? 0;
   if (lockerCount > 0) parts.push(`${lockerCount} casillero${lockerCount > 1 ? "s" : ""}`);
   const items = sale.sale_items ?? [];
-  if (items.some((i) => i.product_type === "service")) parts.push("entrada");
+  const noLockerQty = items.filter((i) => i.product_type === "service").reduce((s, i) => s + i.quantity, 0);
+  if (noLockerQty > 0) parts.push(`${noLockerQty} entrada${noLockerQty > 1 ? "s" : ""}`);
   const consumableQty = items.filter((i) => i.product_type === "consumable").reduce((s, i) => s + i.quantity, 0);
   if (consumableQty > 0) parts.push(`${consumableQty} producto${consumableQty > 1 ? "s" : ""}`);
   const rentalQty = items.filter((i) => i.product_type === "rental").length;
