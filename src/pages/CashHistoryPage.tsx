@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { useAppData } from "../hooks/useAppData";
 import { money, formatDateTime } from "../lib/format";
-import { generateCashClosePDF } from "../lib/pdf";
+import { generateCashClosePDF, openPdfPlaceholder } from "../lib/pdf";
 import type { CashRegister, CashMovement } from "../types/database";
 
 export default function CashHistoryPage() {
@@ -25,7 +25,11 @@ export default function CashHistoryPage() {
   }, []);
 
   async function handleDownload(r: CashRegister) {
-    if (!settings) return;
+    const win = openPdfPlaceholder();
+    if (!settings) {
+      win?.close();
+      return;
+    }
     const [{ data: movements }, { data: sales }] = await Promise.all([
       supabase.from("cash_movements").select("*").eq("cash_register_id", r.id).order("created_at"),
       supabase.from("sales").select("sale_lockers(unit_price), sale_items(product_type, line_total)").eq("cash_register_id", r.id),
@@ -39,7 +43,7 @@ export default function CashHistoryPage() {
         if (it.product_type === "service") cat.noLockerFee += Number(it.line_total);
       });
     });
-    generateCashClosePDF(r, (movements as CashMovement[]) ?? [], settings, r.opener?.full_name ?? "—", r.closer?.full_name ?? "—", cat);
+    await generateCashClosePDF(r, (movements as CashMovement[]) ?? [], settings, r.opener?.full_name ?? "—", r.closer?.full_name ?? "—", cat, win);
   }
 
   return (

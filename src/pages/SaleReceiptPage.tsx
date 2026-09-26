@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Download, ArrowLeft } from "lucide-react";
+import { FileText, ArrowLeft } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { useAppData } from "../hooks/useAppData";
-import { generateSaleReceiptPDF } from "../lib/pdf";
+import { generateSaleReceiptPDF, openPdfPlaceholder } from "../lib/pdf";
 import { money, formatDateTime, paymentLabels } from "../lib/format";
 import type { Sale } from "../types/database";
 
@@ -92,9 +92,14 @@ export default function SaleReceiptPage() {
         <button
           className="btn btn-primary"
           style={{ width: "100%", marginTop: 20 }}
-          onClick={() => settings && generateSaleReceiptPDF(sale, settings, sale.seller?.full_name ?? "—")}
+          onClick={() => {
+            if (settings) {
+              const win = openPdfPlaceholder();
+              generateSaleReceiptPDF(sale, settings, sale.seller?.full_name ?? "—", win);
+            }
+          }}
         >
-          <Download size={16} /> Descargar comprobante PDF
+          <FileText size={16} /> Ver / imprimir comprobante
         </button>
       </div>
     </div>

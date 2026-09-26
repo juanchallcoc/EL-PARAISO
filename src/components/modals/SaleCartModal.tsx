@@ -7,7 +7,7 @@ import ProductLinePicker from "../ui/ProductLinePicker";
 import { money } from "../../lib/format";
 import { createSale, fetchFullSale } from "../../lib/sales";
 import { fetchProductsWithAvailability } from "../../lib/products";
-import { generateSaleReceiptPDF } from "../../lib/pdf";
+import { generateSaleReceiptPDF, openPdfPlaceholder } from "../../lib/pdf";
 import { useAppData } from "../../hooks/useAppData";
 import { useAuth } from "../../hooks/useAuth";
 import { useToast } from "../../hooks/useToast";
@@ -66,6 +66,7 @@ export default function SaleCartModal({
 
   async function handleSubmit() {
     if (!customer || !activeRegister || !profile) return;
+    const receiptWindow = openPdfPlaceholder();
     setSubmitting(true);
     try {
       const productLines = [...consumableLines, ...rentalLines].map((l) => ({ productId: l.product.id, quantity: l.quantity }));
@@ -84,12 +85,16 @@ export default function SaleCartModal({
 
       if (settings) {
         const fullSale = await fetchFullSale(saleId);
-        if (fullSale) generateSaleReceiptPDF(fullSale, settings, profile.full_name || "—");
+        if (fullSale) await generateSaleReceiptPDF(fullSale, settings, profile.full_name || "—", receiptWindow);
+        else receiptWindow?.close();
+      } else {
+        receiptWindow?.close();
       }
 
       onSuccess();
       onClose();
     } catch (err: any) {
+      receiptWindow?.close();
       showToast(err.message || "No se pudo registrar la venta", "error");
     } finally {
       setSubmitting(false);

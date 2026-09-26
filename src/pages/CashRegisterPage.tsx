@@ -6,7 +6,7 @@ import { useAppData } from "../hooks/useAppData";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
 import { money, formatDateTime } from "../lib/format";
-import { generateCashClosePDF, type CashCloseCategoryTotals } from "../lib/pdf";
+import { generateCashClosePDF, openPdfPlaceholder, type CashCloseCategoryTotals } from "../lib/pdf";
 import type { CashMovement, MovementType } from "../types/database";
 
 export default function CashRegisterPage() {
@@ -318,11 +318,17 @@ function CloseRegisterModal({
   const { settings } = useAppData();
   const { showToast } = useToast();
   const [closing, setClosing] = useState(false);
+  const [countedCash, setCountedCash] = useState("");
+  const [closeNotes, setCloseNotes] = useState("");
 
   const closingBalance = Number(register.opening_amount) + totals.cash + totalIncome - totalExpense;
+  const countedValue = countedCash === "" ? null : Number(countedCash);
+  const difference = countedValue !== null ? countedValue - closingBalance : null;
+  const canClose = countedCash !== "" && !closing;
 
   async function handleClose() {
-    if (!profile) return;
+    if (!profile || countedValue === null) return;
+    const win = openPdfPlaceholder();
     setClosing(true);
     const payload = {
       status: "closed",
@@ -334,22 +340,29 @@ function CloseRegisterModal({
       total_other_income: totalIncome,
       total_expenses: totalExpense,
       closing_balance: closingBalance,
+      counted_cash_amount: countedValue,
+      cash_difference: difference,
+      notes: closeNotes.trim() || null,
     };
     const { data, error } = await supabase.from("cash_registers").update(payload).eq("id", register.id).select().single();
     setClosing(false);
     if (error || !data) {
+      win?.close();
       showToast(error?.message || "No se pudo cerrar la caja", "error");
       return;
     }
     if (settings) {
-      generateCashClosePDF(
+      await generateCashClosePDF(
         { ...register, ...data },
         movements,
         settings,
         profile.full_name ?? "—",
         profile.full_name ?? "—",
-        categoryTotals
+        categoryTotals,
+        win
       );
+    } else {
+      win?.close();
     }
     showToast("Caja cerrada correctamente");
     onClosed();
@@ -373,9 +386,49 @@ function CloseRegisterModal({
         <Row label="Otros ingresos" value={money(totalIncome)} />
         <Row label="Egresos" value={"- " + money(totalExpense)} />
         <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 16, borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 8 }}>
-          <span>Saldo final en caja</span>
+          <span>Efectivo esperado en caja</span>
           <span>{money(closingBalance)}</span>
         </div>
+
+        <div style={{ marginTop: 14 }}>
+          <label className="label">Efectivo contado físicamente en caja</label>
+          <input
+            className="input"
+            type="number"
+            min="0"
+            placeholder="Cuenta el efectivo y escribe el monto aquí"
+            value={countedCash}
+            onChange={(e) => setCountedCash(e.target.value)}
+          />
+        </div>
+
+        {difference !== null && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontWeight: 700,
+              fontSize: 14,
+              marginTop: 10,
+              color: difference === 0 ? "var(--success)" : "var(--danger)",
+            }}
+          >
+            <span>{difference === 0 ? "Cuadra exacto" : difference > 0 ? "Sobrante" : "Faltante"}</span>
+            <span>{money(Math.abs(difference))}</span>
+          </div>
+        )}
+
+        <div style={{ marginTop: 14 }}>
+          <label className="label">Observaciones (opcional)</label>
+          <textarea
+            className="input"
+            rows={2}
+            placeholder="Ej: faltaron Bs 5, posible vuelto mal dado"
+            value={closeNotes}
+            onChange={(e) => setCloseNotes(e.target.value)}
+          />
+        </div>
+
         <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 12 }}>
           Al confirmar se generará automáticamente el PDF del cierre y no podrás registrar más ventas hasta abrir una nueva caja.
         </p>
@@ -383,7 +436,7 @@ function CloseRegisterModal({
           <button className="btn btn-ghost" onClick={onClose}>
             Cancelar
           </button>
-          <button className="btn btn-danger" disabled={closing} onClick={handleClose}>
+          <button className="btn btn-danger" disabled={!canClose} onClick={handleClose}>
             {closing ? "Cerrando…" : "Confirmar cierre"}
           </button>
         </div>

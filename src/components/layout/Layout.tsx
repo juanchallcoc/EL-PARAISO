@@ -30,8 +30,25 @@ export default function Layout({ children }: { children: ReactNode }) {
       <header style={{ background: "linear-gradient(135deg, #EFFBFC 0%, #FFF6EE 100%)" }}>
         <div className="container" style={{ paddingTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: "var(--available)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Waves size={22} color="white" />
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 14,
+                background: settings?.logo_url ? "white" : "var(--available)",
+                border: settings?.logo_url ? "1.5px solid var(--border)" : "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                overflow: "hidden",
+              }}
+            >
+              {settings?.logo_url ? (
+                <img src={settings.logo_url} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <Waves size={22} color="white" />
+              )}
             </div>
             <div>
               <h1 className="display" style={{ fontSize: 22, margin: 0, lineHeight: 1 }}>

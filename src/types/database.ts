@@ -103,6 +103,8 @@ export interface CashRegister {
   total_other_income: number;
   total_expenses: number;
   closing_balance: number;
+  counted_cash_amount: number | null;
+  cash_difference: number | null;
   notes: string | null;
   opener?: Profile;
   closer?: Profile;
