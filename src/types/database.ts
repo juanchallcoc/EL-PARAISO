@@ -125,6 +125,8 @@ export interface BusinessSettings {
   id: number;
   business_name: string;
   logo_url: string | null;
+  logo_receipt_url: string | null;
+  favicon_url: string | null;
   address: string | null;
   phone: string | null;
   email: string | null;

@@ -39,6 +39,7 @@ export default function SaleCartModal({
   const [applyDiscount, setApplyDiscount] = useState(false);
   const [discountPct, setDiscountPct] = useState(settings?.discount_default_percentage ?? 0);
   const [payment, setPayment] = useState<PaymentMethod>("cash");
+  const [cashGiven, setCashGiven] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -56,6 +57,8 @@ export default function SaleCartModal({
   const subtotal = lockerTotal + noLockerFeeTotal + consumableTotal + rentalTotal;
   const discountAmount = applyDiscount ? Math.round(subtotal * (discountPct / 100) * 100) / 100 : 0;
   const total = subtotal - discountAmount;
+  const cashGivenNumber = cashGiven === "" ? null : Number(cashGiven);
+  const change = cashGivenNumber !== null ? cashGivenNumber - total : null;
 
   const hasAnyItem = selectedLockerIds.length > 0 || noLockerQty > 0 || consumableLines.length > 0 || rentalLines.length > 0;
   const canSubmit = !!customer && hasAnyItem && !!activeRegister && !submitting;
@@ -225,8 +228,48 @@ export default function SaleCartModal({
         </div>
 
         <div style={{ marginTop: 12 }}>
-          <PaymentMethodPicker value={payment} onChange={setPayment} />
+          <PaymentMethodPicker
+            value={payment}
+            onChange={(v) => {
+              setPayment(v);
+              if (v !== "cash") setCashGiven("");
+            }}
+          />
         </div>
+
+        {payment === "cash" && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px dashed var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <label className="label" style={{ margin: 0, whiteSpace: "nowrap" }}>
+                Billete recibido
+              </label>
+              <input
+                type="number"
+                min="0"
+                className="input"
+                style={{ maxWidth: 140, textAlign: "right" }}
+                placeholder="Bs 0,00"
+                value={cashGiven}
+                onChange={(e) => setCashGiven(e.target.value)}
+              />
+            </div>
+            {change !== null && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 16,
+                  fontWeight: 700,
+                  marginTop: 8,
+                  color: change < 0 ? "var(--occupied)" : "var(--available)",
+                }}
+              >
+                <span>{change < 0 ? "Falta" : "Cambio"}</span>
+                <span>{money(Math.abs(change))}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end", gap: 8 }}>

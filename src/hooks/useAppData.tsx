@@ -47,6 +47,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id]);
 
+  useEffect(() => {
+    if (!settings?.favicon_url) return;
+    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = settings.favicon_url;
+  }, [settings?.favicon_url]);
+
   return (
     <AppDataContext.Provider value={{ settings, activeRegister, loading, refreshSettings, refreshRegister }}>
       {children}

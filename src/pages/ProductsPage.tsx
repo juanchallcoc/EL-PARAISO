@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, X, Package, Shirt, RotateCcw } from "lucide-react";
+import { Plus, X, Package, Shirt, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { fetchProductsWithAvailability } from "../lib/products";
 import { money, formatDateTime } from "../lib/format";
@@ -106,46 +106,104 @@ function Section({
   onEdit: (p: Product) => void;
   onViewRentals?: (p: ProductWithAvailability) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const PREVIEW_COUNT = 8;
+
+  const isRentalSection = !!onViewRentals;
+
+  const sorted = [...products].sort((a, b) => {
+    if (isRentalSection) {
+      // Primero los que tienen unidades pendientes de devolver, luego los más nuevos.
+      if (a.activeRentals > 0 !== b.activeRentals > 0) return a.activeRentals > 0 ? -1 : 1;
+    }
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  const filtered = query.trim()
+    ? sorted.filter((p) => p.name.toLowerCase().includes(query.trim().toLowerCase()))
+    : sorted;
+
+  const visible = query.trim() || expanded ? filtered : filtered.slice(0, PREVIEW_COUNT);
+  const hiddenCount = filtered.length - visible.length;
+
   return (
     <div style={{ marginBottom: 28 }}>
-      <h3 className="display" style={{ fontSize: 16, display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <Icon size={17} color="var(--available)" /> {title}
-      </h3>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+        <h3 className="display" style={{ fontSize: 16, display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          <Icon size={17} color="var(--available)" /> {title}
+        </h3>
+        {products.length > PREVIEW_COUNT && (
+          <input
+            className="input"
+            style={{ maxWidth: 220, padding: "6px 10px", fontSize: 13 }}
+            placeholder="Buscar producto…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        )}
+      </div>
+
       {products.length === 0 ? (
         <div className="card" style={{ color: "var(--text-muted)", fontSize: 14 }}>
           {emptyText}
         </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-          {products.map((p) => (
-            <div
-              key={p.id}
-              className="card"
-              style={{
-                padding: 14,
-                background: p.lowStock ? "var(--occupied-soft)" : "var(--available-soft)",
-                border: `1.5px solid ${p.lowStock ? "var(--occupied-border)" : "var(--available-border)"}`,
-              }}
-            >
-              <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{p.name}</p>
-              <p style={{ margin: "2px 0 8px", fontSize: 13, color: "var(--text-muted)" }}>{money(p.price)}</p>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: p.lowStock ? "var(--occupied)" : "var(--available)" }}>
-                {p.type === "rental" ? `${p.available} disponibles de ${p.stock_quantity}` : `${p.available} en stock`}
-                {p.lowStock ? " · Stock bajo" : ""}
-              </p>
-              <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                <button className="btn-outline" style={{ flex: 1, fontSize: 12, padding: "6px 0" }} onClick={() => onEdit(p)}>
-                  Editar
-                </button>
-                {onViewRentals && p.activeRentals > 0 && (
-                  <button className="btn-outline" style={{ flex: 1, fontSize: 12, padding: "6px 0" }} onClick={() => onViewRentals(p)}>
-                    <RotateCcw size={12} /> Devolver
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+      ) : filtered.length === 0 ? (
+        <div className="card" style={{ color: "var(--text-muted)", fontSize: 14 }}>
+          Sin resultados para “{query}”.
         </div>
+      ) : (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+            {visible.map((p) => (
+              <div
+                key={p.id}
+                className="card"
+                style={{
+                  padding: 14,
+                  background: p.lowStock ? "var(--occupied-soft)" : "var(--available-soft)",
+                  border: `1.5px solid ${p.lowStock ? "var(--occupied-border)" : "var(--available-border)"}`,
+                }}
+              >
+                <p style={{ margin: 0, fontWeight: 700, fontSize: 15 }}>{p.name}</p>
+                <p style={{ margin: "2px 0 8px", fontSize: 13, color: "var(--text-muted)" }}>{money(p.price)}</p>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: p.lowStock ? "var(--occupied)" : "var(--available)" }}>
+                  {p.type === "rental" ? `${p.available} disponibles de ${p.stock_quantity}` : `${p.available} en stock`}
+                  {p.lowStock ? " · Stock bajo" : ""}
+                </p>
+                <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                  <button className="btn-outline" style={{ flex: 1, fontSize: 12, padding: "6px 0" }} onClick={() => onEdit(p)}>
+                    Editar
+                  </button>
+                  {onViewRentals && p.activeRentals > 0 && (
+                    <button className="btn-outline" style={{ flex: 1, fontSize: 12, padding: "6px 0" }} onClick={() => onViewRentals(p)}>
+                      <RotateCcw size={12} /> Devolver
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {!query.trim() && hiddenCount > 0 && (
+            <button
+              className="btn-ghost"
+              style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: "var(--available)", display: "flex", alignItems: "center", gap: 4 }}
+              onClick={() => setExpanded(true)}
+            >
+              <ChevronDown size={14} /> Ver {hiddenCount} más
+            </button>
+          )}
+          {!query.trim() && expanded && filtered.length > PREVIEW_COUNT && (
+            <button
+              className="btn-ghost"
+              style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 4 }}
+              onClick={() => setExpanded(false)}
+            >
+              <ChevronUp size={14} /> Ver menos
+            </button>
+          )}
+        </>
       )}
     </div>
   );

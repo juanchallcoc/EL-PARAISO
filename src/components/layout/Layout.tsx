@@ -32,8 +32,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
               style={{
-                width: 44,
-                height: 44,
+                width: settings?.logo_url ? 132 : 44,
+                height: settings?.logo_url ? 88 : 44,
                 borderRadius: 14,
                 background: settings?.logo_url ? "white" : "var(--available)",
                 border: settings?.logo_url ? "1.5px solid var(--border)" : "none",
@@ -45,7 +45,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               }}
             >
               {settings?.logo_url ? (
-                <img src={settings.logo_url} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img src={settings.logo_url} alt="Logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
               ) : (
                 <Waves size={22} color="white" />
               )}

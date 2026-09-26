@@ -136,10 +136,11 @@ function openInViewer(doc: jsPDF, targetWindow?: Window | null) {
 }
 
 async function drawBusinessHeader(builder: ReturnType<typeof createReceiptBuilder>, settings: BusinessSettings) {
-  if (settings.logo_url) {
-    const image = await loadImageAsDataUrl(settings.logo_url);
+  const logoUrl = settings.logo_receipt_url || settings.logo_url;
+  if (logoUrl) {
+    const image = await loadImageAsDataUrl(logoUrl);
     if (image) {
-      builder.image(image.dataUrl, image.format, 20, 20);
+      builder.image(image.dataUrl, image.format, 24, 16);
     }
   }
   builder.text(settings.business_name || "El Paraíso", { size: 13, bold: true, align: "center" });
